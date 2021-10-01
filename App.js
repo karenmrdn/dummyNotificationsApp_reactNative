@@ -33,11 +33,31 @@ const App = () => {
       });
   }, []);
 
+  useEffect(() => {
+    // this function runs whenever user PRESS on a notification in a background
+    const backgroundSubscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(response);
+      });
+
+    // this function runs whenever user get a notification in a foreground
+    const foregroundSubscription =
+      Notifications.addNotificationReceivedListener((notification) => {
+        console.log(notification);
+      });
+
+    return () => {
+      foregroundSubscription.remove();
+      backgroundSubscription.remove();
+    };
+  }, []);
+
   const handleNotificationTrigger = () => {
     Notifications.scheduleNotificationAsync({
       content: {
         title: "First local notification",
         body: "It is a text of first local notification",
+        data: { mySuperImportantData: "I am engineer" },
       },
       trigger: {
         seconds: 5,
