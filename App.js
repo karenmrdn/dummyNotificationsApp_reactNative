@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Button, View } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Permissions from "expo-permissions";
@@ -12,7 +12,10 @@ Notifications.setNotificationHandler({
   },
 });
 
+// https://expo.dev/notifications
 const App = () => {
+  const [pushToken, setPushToken] = useState();
+
   useEffect(() => {
     Permissions.getAsync(Permissions.NOTIFICATIONS)
       .then((statusObj) => {
@@ -23,13 +26,24 @@ const App = () => {
       })
       .then((statusObj) => {
         if (statusObj.status !== "granted") {
-          Alert.alert(
-            "Notifications permissions denied",
-            "You will not get notifications from our app.",
-            [{ text: "OK" }]
-          );
-          return;
+          throw new Error("You will not get notifications from our app.");
         }
+      })
+      .then(() => {
+        return Notifications.getExpoPushTokenAsync();
+      })
+      .then((response) => {
+        const token = response.data;
+        setPushToken(token);
+
+        // We need to store this token in our own api to
+        // be able to send notifications not only on our device
+        // but also on device of other user of this app
+      })
+      .catch((error) => {
+        Alert.alert("Notifications permissions denied", error.message, [
+          { text: "OK" },
+        ]);
       });
   }, []);
 
@@ -53,15 +67,30 @@ const App = () => {
   }, []);
 
   const handleNotificationTrigger = () => {
-    Notifications.scheduleNotificationAsync({
-      content: {
-        title: "First local notification",
-        body: "It is a text of first local notification",
-        data: { mySuperImportantData: "I am engineer" },
+    // Notifications.scheduleNotificationAsync({
+    //   content: {
+    //     title: "First local notification",
+    //     body: "It is a text of first local notification",
+    //     data: { mySuperImportantData: "I am engineer" },
+    //   },
+    //   trigger: {
+    //     seconds: 5,
+    //   },
+    // });
+
+    fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Ending": "gzip, deflate",
+        "Content-Type": "application/json",
       },
-      trigger: {
-        seconds: 5,
-      },
+      body: JSON.stringify({
+        to: pushToken,
+        title: "Sent via the app",
+        body: "This push notifications was sent via the app!",
+        data: { extraData: "Some additional data" },
+      }),
     });
   };
 
